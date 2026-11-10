@@ -1,13 +1,34 @@
 import type { SourceConfig } from './types';
 
+// 内置默认高清片源列表（当没有配置环境变量时自动加载）
+const HARDCODED_SOURCES = [
+  { name: '魔都资源', url: 'https://caiji.moduapi.cc/api.php/provide/vod/' },
+  { name: '光速资源', url: 'https://api.guangsuapi.com/api.php/provide/vod/' },
+  { name: '量子资源', url: 'https://cj.lziapi.com/api.php/provide/vod/' },
+  { name: '红牛资源', url: 'https://www.hongniuzy2.com/api.php/provide/vod/' },
+  { name: '暴风资源', url: 'https://bfzyapi.com/api.php/provide/vod/' },
+  { name: '金鹰资源', url: 'https://jyzyapi.com/api.php/provide/vod/' },
+  { name: '百度云资源', url: 'https://api.apibdzy.com/api.php/provide/vod/' },
+  { name: '非凡资源', url: 'http://cj.ffzyapi.com/api.php/provide/vod/' },
+];
+
 /**
- * 部署者通过 DEFAULT_SOURCES 环境变量预置的采集站。
- * 格式为 JSON 数组：[{"name":"源名","url":"https://.../api.php/provide/vod","detail":"https://...","isAdult":false}]
- * 解析失败时告警并整体忽略，不影响站点运行。
+ * 优先读取环境变量预置源；若未设置，则自动回落到内置的 8 个优质源。
  */
 export function getEnvSources(): SourceConfig[] {
   const raw = process.env.DEFAULT_SOURCES;
-  if (!raw || !raw.trim()) return [];
+  
+  // 如果没有环境变量，直接返回写好的 8 个优质源
+  if (!raw || !raw.trim()) {
+    return HARDCODED_SOURCES.map((item, i) => ({
+      key: `hardcoded_${i}`,
+      name: item.name,
+      url: item.url.trim().replace(/\/+$/, ''),
+      detail: undefined,
+      isAdult: false,
+    }));
+  }
+
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) throw new Error('必须是 JSON 数组');
@@ -32,7 +53,13 @@ export function getEnvSources(): SourceConfig[] {
     });
     return list;
   } catch (err) {
-    console.warn('[LibreTV] DEFAULT_SOURCES 解析失败，已忽略：', err instanceof Error ? err.message : err);
-    return [];
+    console.warn('[LibreTV] DEFAULT_SOURCES 解析失败，已回落至默认源：', err instanceof Error ? err.message : err);
+    return HARDCODED_SOURCES.map((item, i) => ({
+      key: `fallback_${i}`,
+      name: item.name,
+      url: item.url.trim().replace(/\/+$/, ''),
+      detail: undefined,
+      isAdult: false,
+    }));
   }
 }
